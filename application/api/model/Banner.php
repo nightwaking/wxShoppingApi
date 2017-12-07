@@ -1,32 +1,25 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: 随缘
- * Date: 2017/10/21
- * Time: 12:33
- */
 
 namespace app\api\model;
 
-
 use think\Db;
-use think\Exception;
 use think\Model;
+
 
 class Banner extends BaseModel
 {
-    protected $hidden = ['delete_time', 'update_time'];
+	protected $hidden = ['update_time', 'delete_time'];
 
-    public function items()
-    {
-        return $this->hasMany('BannerItem', 'banner_id', 'id');
-    }
+	public function items(){
+		//关联表，　关联的字段，当前模型主键
+		return $this->hasMany('BannerItem', 'banner_id', 'id');
+	}
 
-    //根据banner的id获取banner表的信息
-    public static function getBannerById($id)
-    {
-        $banner = self::with(['items', 'items.image'])->find($id);
 
-        return $banner;
-    }
+	public static function getBannerByID($id)
+	{
+		//返回的$banner为对象  返回一个对象　模型get Db find 返回一组　模型all Db select
+		$banner = self::with(['items','items.img'])->find($id);
+		return $banner;
+	}
 }

@@ -1,55 +1,40 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: 随缘
- * Date: 2017/11/6
- * Time: 19:08
- */
 
 namespace app\api\controller\v1;
 
-
-use app\api\validate\IDMustBePositiveInt;
+use app\api\controller\BaseController;
+use app\api\validate\IDMustBePostiveInt;
 use app\api\service\Pay as PayService;
-use app\api\service\WxNotify as WxNotifyService;
+use app\api\service\WxNotify;
 
-class Pay extends BaseController
-{
-    protected $beforeActionList = [
-        'only' => 'getPreOrder'
-    ];
+class Pay extends BaseController{
+	
+	protected $beforeActionList = [
+		'checkExclusiveScope' => ['only' => 'getPreOrder']
+	];
+	
+	//请求预订单信息
+	public function getPreOrder($id=""){
+		(new IDMustBePostiveInt())->goCheck();
+		$pay = new PayService($id);
+		return $pay->pay();
+	}
 
-    public function getPreOrder($id = '')
-    {
-        (new IDMustBePositiveInt())->goCheck();
+	// 接收微信通知，微信支付结果 post请求 xml格式 不能在路由中携带查询参数
+	public function receiveNotify(){
+		// 调用回调接口的频率　15/15/30/180/1800/1800/1800/3600 秒
+		// 前提为未调用成功后间隔发送请求，微信不能保证每次的回调都能成功
+		
+		// 检测库存量
 
-        $payService = new PayService($id);
+		// 更新订单状态，更改数据库中的status值
 
-        return $payService->pay();
-    }
+		// 更新库存
 
-    public function receiveNotify()
-    {
-        //通知频率为15/15/30/180/1800/1800/1800/1800/3600，单位：秒
-
-        //1.检查库存量，超卖
-        //2.更新这个订单的status状态
-        //3.减库存
-        //如果成功处理，我们返回微信成功处理的信息。否则，我们需要返回没有成功处理
-
-        //特点：post：xml格式；不会携带参数
-
-        $notify = new WxNotifyService();
-        $notify->Handle();
-    }
-
-    public function redirectNotify()
-    {
-        $notify = new WxNotifyService();
-        $notify->Handle();
-
-        $xdebug = '';
-        $xmlData = file_get_contents('php://input');
-        $result = curl_post_row('http://qiyue.com/api/v1/pay/re_notify?'.$xdebug, $xmlData);
-    }
+		// 返回成功处理
+		$notfiy = new WxNotify();
+		// 调用Handle方法,NotifyProcess方法的$data参数未知，调用Handle方法
+		// 内部调用NotifyProcess
+		$notfiy->Handle();
+	}
 }

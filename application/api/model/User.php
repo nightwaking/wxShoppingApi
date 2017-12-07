@@ -1,25 +1,19 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: 随缘
- * Date: 2017/10/28
- * Time: 9:37
- */
 
 namespace app\api\model;
 
+use think\Model;
 
 class User extends BaseModel
 {
-    public function address()
-    {
-        return $this->hasOne('UserAddress', 'user_id', 'id');
+    public function address(){
+    	return $this->hasOne('UserAddress', 'user_id', 'id');
     }
 
-    public static function getUserByOpenid($openid)
-    {
-        $user = self::where('openid', '=', $openid)->find();
+    public static function getByOpenId($openid){
+    	$openId = self::where('openid', '=', $openid)
+    		->find();
 
-        return $user;
+    	return $openId;
     }
 }

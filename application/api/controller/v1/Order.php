@@ -1,108 +1,84 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: pc
- * Date: 2017/11/2
- * Time: 19:37
- */
 
 namespace app\api\controller\v1;
 
-
 use app\api\service\Token as TokenService;
-use app\api\validate\IDMustBePositiveInt;
-use app\api\validate\OrderPlace;
-use app\api\validate\PagingParameter;
-use app\lib\exception\OrderException;
-use think\Controller;
-use app\api\model\Order as OrderModel;
 use app\api\service\Order as OrderService;
+use app\api\model\Order as OrderModel;
+use app\api\validate\OrderPlace;
+use app\api\validate\IDMustBePostiveInt;
+use app\api\validate\PagingParameter;
+use app\lib\exception\TokenException;
+use app\lib\exception\OrderException;
+use app\lib\exception\ForbiddenException;
+use app\lib\enum\ScopeEnum;
+use app\api\controller\BaseController;
 
-class Order extends BaseController
-{
-    // 用户在选择商品后，向API提交包含它所选择商品的相关信息
-    // API在接收到消息后，需要检查订单相关商品的库存量
-    // 有库存，把订单数据存入数据库中 = 下单成功了，返回客户端消息，告诉用户可以支付了
-    // 调用支付接口，进行支付
-    // 还需要再次进行库存量检测
-    // 服务器这边就可以调用微信的支付接口进行支付
-    // 小程序根据服务器返回的结果拉起微信支付
-    // 微信会返回给我一个支付的结果（异步）
-    // 成功：也需要进行库存量的检查
-    // 成功：进行库存量的扣除
-    // 失败：返回一个支付失败的结果（是由微信自动返回的）
+class Order extends BaseController{
+	//用户在选择商品后，向api提交包含他所选商品的相关信息
+	//api在接收到信息后，需要检查订单相关的库存
+	//有库存，把订单数据存入数据库中　＝　下单成功，返回客户端消息，客户端可以支付
+	//调用支付接口，进行支付
+	//还需要进行库存量的检测
+	//服务器调用微信的支付接口进行支付
+	//根据微信返回的支付结果，返回给服务器和小程序客户端，判断支付是否成功(异步)
+	//成功：库存量的检测
+	//成功进行库存量的扣除
 
-    protected $beforeActionList = [
-        'checkExclusiveScope' => ['only' => 'placeOrder'],
-        'checkPrimaryScope' => ['only' => 'getDetail, getSummaryByUser']
-    ];
+	// 前置操作
+	protected $beforeActionList = [
+	 	'checkExclusiveScope' => ['only' => 'placeOrder'],
+	 	'checkPrimaryScope' => ['only' => 'getDetail, getSummaryByUser']
+	];
 
-    public function placeOrder()
-    {
-        (new OrderPlace())->goCheck();
-        //因为传过来的是一个数组，所以要加一个 a
-        $products = input('post.products/a');
-        $uid = TokenService::getCurrentUID();
+	/**
+	* 根据用户返回用户订单的概要信息，进行分页
+	*/
+	public function getSummaryByUser($page=1, $size=15){
+		(new PagingParameter())->goCheck();
+		// 获取用户uid
+		$uid = TokenService::getCurrentUid();
+		$pagingOrders = OrderModel::getSummaryByUser($uid, $page, $size);
+		if ($pagingOrders->isEmpty()){
+			// 分页对象为空，返回空数组，将当前分页数返回，调用对象的getCurrentPage
+			//　方法
+			return [
+				'data' => [],
+				'current_page' => $pagingOrders->getCurrentPage()
+			];
+		}
+		//　判断通过，将对象转换成数组
+		$data = $pagingOrders->hidden(['snap_items', 'snap_address', 'prepay_id'])->toArray();
+		return [
+			'data' => $data,
+			'current_page' => $pagingOrders->getCurrentPage()
+		];
+	}
 
-        $order = new OrderService();
-        $status = $order->place($uid, $products);
+	/**
+	* 获取订单详细信息
+	*　＠param $id 订单id
+	*/
+	public function getDetail($id){
+		(new IDMustBePostiveInt())->goCheck();
+		$orderDetail = OrderModel::get($id);
+		if (!$orderDetail){
+			throw new OrderException();
+		}
+		return $orderDetail->hidden(['prepay_id']);
+	}
+	
+	/**
+	* 创建订单，返回订单信息
+	*/
+	public function placeOrder(){
+		(new OrderPlace())->goCheck();
+		$products = input('post.products/a');
+		
+		$uid = TokenService::getCurrentUid();
 
-        return $status;
-    }
-
-    public function getSummaryByUser($page = 1, $size = 15)
-    {
-        (new PagingParameter())->goCheck();
-
-        $uid = TokenService::getCurrentUID();
-        $pagingOrders = OrderModel::getSummaryByUser($uid, $page, $size);
-        if ($pagingOrders->isEmpty()) {
-            return [
-                'data' => [],
-                'current_page' => $pagingOrders->getCurrentPage()
-            ];
-        }
-        return [
-            'data' => $pagingOrders->hidden(['snap_items', 'snap_address', 'prepay_id'])
-                ->toArray(),
-//            'current_page' => $pagingOrders->getCurrentPage()
-        ];
-    }
-
-    public function getDetail($id)
-    {
-        (new IDMustBePositiveInt())->goCheck();
-
-        $order = OrderModel::get($id);
-        if (!$order) {
-            throw new OrderException;
-        }
-
-        return $order->hidden(['prepay_id']);
-    }
-
-    /**
-     * 获取全部订单的简要信息 (分页)
-     * @param int $page
-     * @param int $size
-     * @return array
-     * @throws \app\lib\exception\ParameterException
-     */
-    public function getSummary($page = 1, $size = 20)
-    {
-        (new PagingParameter())->goCheck();
-        $pagingOrders = OrderModel::getSummaryByPage($page, $size);
-        if ($pagingOrders->isEmpty()) {
-            return [
-                'current_page' => $pagingOrders->currentPage(),
-                'data' => []
-            ];
-        }
-        $data = $pagingOrders->hidden(['snap_items', 'snap_address'])->toArray();
-
-        return [
-            'current_page' => $pagingOrders->currentPage(),
-            'data' => $data
-        ];
-    }
+		$order = new OrderService();
+		$status = $order->place($uid, $products);
+		return $status;
+	}
 }

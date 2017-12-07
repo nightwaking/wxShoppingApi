@@ -1,57 +1,52 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: 随缘
- * Date: 2017/10/23
- * Time: 21:19
- */
 
 namespace app\api\model;
 
+use app\api\model\BaseModel;
 
 class Product extends BaseModel
 {
-    protected $hidden = ['update_time', 'delete_time', 'category_id',
-        'from', 'create_time', 'update_time', 'pivot'];
+	//pivot 多对多关系的中间表
+    protected $hidden = [
+    	'delete_time', 'from', 'category_id',
+    	'create_time', 'update_time', 'pivot'
+    ];
 
-    public function getMainImgUrlAttr($value, $data)
-    {
-        return $this->prefixImgUrl($value, $data);
-    }
-
-    public function images()
-    {
+    public function imgs(){
         return $this->hasMany('ProductImage', 'product_id', 'id');
     }
 
-    public function properties()
-    {
+    public function properties(){
         return $this->hasMany('ProductProperty', 'product_id', 'id');
     }
 
-    public static function getRecentProducts($count)
-    {
-        $products = self::limit($count)->order('create_time desc')->select();
+    public function getMainImgUrlAttr($value,$data){
+    	return $this->prefixImg($value, $data);
+    }
 
+    public static function getMostRecent($count){
+    	$products = self::limit($count)
+    			->order('create_time desc')
+    			->select();
+    	return $products;
+    }
+
+    public static function getProductsByCategory($categoryID){
+        $products = self::where('category_id', '=', $categoryID)
+            ->select();
         return $products;
     }
 
-    public static function getCategoryOfProducts($category_id)
-    {
-        $products = self::where('category_id', '=', $category_id)->select();
-
-        return $products;
-    }
-
-    public static function getDetailOfProduct($id)
-    {
+    public static function getOne($id){
+        //闭包进行关联表的排序
         $product = self::with([
-            'images' => function($query) {
-                $query->with(['imgUrl'])->order('order', 'asc');
+            'imgs' => function($query){
+                $query->with('imgUrl')
+                ->order('order', 'asc');
             }
-        ])->with(['properties'])
+        ])
+            ->with('properties')
             ->find($id);
-
         return $product;
     }
 }

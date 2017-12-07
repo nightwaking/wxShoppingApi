@@ -1,27 +1,21 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: 随缘
- * Date: 2017/10/16
- * Time: 18:33
- */
-
 namespace app\api\controller\v2;
 
+use app\api\model\Banner as BannerModel;
+use app\lib\exception\BannerMissException;
 use think\Exception;
+use app\api\validate\IDMustBePostiveInt;
 
 class Banner
 {
-    /**
-     * 获取指定id的banner信息
-     * @url /banner/:id
-     * @http GET
-     * @$id banner的id号
-     */
-    public function getBanner($id)
-    {
-        $banner = 'This is v2 banner';
-
-        return $banner;
-    }
+	/**
+	*  获取指定id的banner信息
+	*　　@id banner的id号
+	*  @url  /banner/:id
+	*  @http GET
+	*/
+	public function getBanner($id)
+	{	
+		return 'this is version2';
+	}
 }
